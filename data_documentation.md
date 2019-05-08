@@ -1,5 +1,7 @@
 # Google Natural Questions Documentation #
 
+The data file is in ***jsonl*** format.
+
 ## Keys ##
 1. annotations
 2. document_html
