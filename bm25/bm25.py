@@ -1,8 +1,6 @@
 import json
 import math
 
-
-
 class Paragraph:
     def __init__(self, start_byte, end_byte, json_dict):
         self.json_dict = json_dict
@@ -85,14 +83,18 @@ class Document:
         for candidate in self.candidates:
             score.append((candidate, self.bm25(candidate)))
         return score
+def test():
+    with open("test.jsonl", 'r') as file:
+        for line in file:
+            json_dict = json.loads(line)
+            d = Document(json_dict)
+            print(d.bm25_for_all_para()[1][1])
 
+def main():
+    test()
 
-
-with open("test.jsonl", 'r') as file:
-    for line in file:
-        json_dict = json.loads(line)
-        d = Document(json_dict)
-        print(d.bm25_for_all_para()[1][1])
+if __name__ == '__main__':
+    main()
 
 
 
