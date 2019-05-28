@@ -84,20 +84,44 @@ class Document:
         for candidate in self.candidates:
             score.append((candidate, self.bm25(candidate)))
         return score
-def test():
+def _verify():
     with open("test.jsonl", 'r') as file:
         for line in file:
             json_dict = json.loads(line)
+            answer_token = list()
+            for anno in json_dict['annotations']:
+                start_token = anno['long_answer']['start_token']
+                end_token = anno['long_answer']['end_token']
+                if (start_token == -1 or end_token == -1):
+                    continue
+                answer_token.append((start_token, end_token))
+            answer_token_set = set(answer_token)
+            answer_token_len = len(answer_token_set)
+
+            #print("Answer token len is: {}".format(answer_token_len))
             d = Document(json_dict)
             score = d.bm25_for_all_para()
             bm25_score = [x[1] for x in score]
             index, value = max(enumerate(bm25_score), key=operator.itemgetter(1))
-            print(bm25_score)
+            '''print(bm25_score)
             print(index)
-            print(value)
+            print(value)'''
+            start_token = score[index][0].start_token
+            end_token = score[index][0].end_token
+
+            '''print(start_token)
+            print(end_token)'''
+
+            match = False
+            for token_set in answer_token_set:
+                if(token_set[0] == start_token and token_set[1] == end_token):
+                    match = True
+
+            print(match)
+
 
 def main():
-    test()
+    _verify()
 
 if __name__ == '__main__':
     main()
