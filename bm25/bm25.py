@@ -2,16 +2,16 @@ import json
 import math
 
 class Paragraph:
-    def __init__(self, start_byte, end_byte, json_dict):
+    def __init__(self, start_token, end_token, json_dict):
         self.json_dict = json_dict
         self.length = 0
         self.paragraph_tokens = {}
-        self.start_byte = start_byte
-        self.end_byte = end_byte
+        self.start_token = start_token
+        self.end_token = end_token
         self.get_paragraph_tokens()
 
     def get_paragraph_tokens(self):
-        current_tokens = self.json_dict['document_tokens'][self.start_byte:self.end_byte]
+        current_tokens = self.json_dict['document_tokens'][self.start_token:self.end_token]
 
         for elem in current_tokens:
             if not elem["html_token"]:
