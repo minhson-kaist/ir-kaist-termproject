@@ -1,5 +1,6 @@
 import json
 import math
+import operator
 
 class Paragraph:
     def __init__(self, start_token, end_token, json_dict):
@@ -88,7 +89,12 @@ def test():
         for line in file:
             json_dict = json.loads(line)
             d = Document(json_dict)
-            print(d.bm25_for_all_para()[1][1])
+            score = d.bm25_for_all_para()
+            bm25_score = [x[1] for x in score]
+            index, value = max(enumerate(bm25_score), key=operator.itemgetter(1))
+            print(bm25_score)
+            print(index)
+            print(value)
 
 def main():
     test()
