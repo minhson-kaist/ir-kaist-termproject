@@ -34,7 +34,7 @@ model = Model()
 # binary cross entropy loss
 criterion = torch.nn.BCELoss(size_average=True)
 # SGD optimizer
-optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 # training
 for epoch in range(num_epochs):
