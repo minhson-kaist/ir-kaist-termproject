@@ -12,55 +12,93 @@ from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.corpus import words as nltk_words
 
+from Core import *
+
 porter_stemmer = PorterStemmer()
 wordnet_lemmatizer = WordNetLemmatizer()
 stopWords = set(stopwords.words('english'))
-
+"""
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
-
+"""
 word_list = set(nltk.corpus.words.words())
 
-def tokenize(text):
-    text = text.lower()
-    tokens = nltk.word_tokenize(text)
-    lemma = lemmatize_tokens(tokens, wordnet_lemmatizer)
-    port_stem = stem_tokens(lemma, porter_stemmer)
-	# Build a list of words ignoring stop worss and illegal characters
-    filtered_stems = filter(lambda stem: stem not in stop_words and stem.isalpha() and stem in word_list, port_stem)
-    return filtered_stems
+
+class Preprocess:
+    def __init__(self):
+        pass
+
+    # Token lemmatizing
+    def lemmatize_tokens(self, tokens, wordnet_lemmatizer):
+        lemmatized = []
+        for item in tokens:
+            lemmatized.append(wordnet_lemmatizer.lemmatize(item))
+        return lemmatized
+
+    # Token stemming
+    def stem_tokens(self, tokens, porter_stemmer):
+        stemmed = []
+        for item in tokens:
+            stemmed.append(porter_stemmer.stem(item))
+        return stemmed
+
+    # Build a vocabulary
+    def tokenize(self, text):
+        text = text.lower()
+        tokens = nltk.word_tokenize(text)
+        lemma = self.lemmatize_tokens(tokens, wordnet_lemmatizer)
+        port_stem = self.stem_tokens(lemma, porter_stemmer)
+        # Build a list of words ignoring stop worss and illegal characters
+        filtered_stems = filter(lambda stem: stem not in stopWords and stem.isalpha() and stem in word_list, port_stem)
+        tokens_list = list(copy.deepcopy((filtered_stems)))
+        return (tokens_list)
+
 
 class Dataset:
     def __init__(self, data_path):
         self.data_path = data_path
-        self.paragraph_num = 0
+        self.json_docs = list()
+        self.__paragraph_num = 0
         self.token_list = self.getToken()
-        print(len(self.token_list))
-        print(type(self.token_list[100]))
+        self.para_candidates = self.getParaCandidates()
+
         self.preprocessed = self.preprocess(self.token_list)
         self.vocab_size = len(self.preprocessed)
-        print(len(self.preprocessed))
-        print(self.paragraph_num)
+
+    def getParaCandidates(self):
+        para_candidates = list()
+        for i in range (len(self.json_docs)):
+            for j in range(len(self.json_docs[i]['long_answer_candidates'])):
+                start_token = self.json_docs[i]['long_answer_candidates'][j]['start_token']
+                end_token = self.json_docs[i]['long_answer_candidates'][j]['end_token']
+                paragraphTokens = self.json_docs[i]['document_tokens'][start_token:end_token]
+                para_candidates.append(paragraphTokens)
+
+        return para_candidates
+
+
+    def setParagraphNum(self, num):
+        self.__paragraph_num = num
+
+    def getParagraphNum(self):
+        return self.__paragraph_num
+
+    def displayParagraphNum(self):
+        print(self.__paragraph_num)
 
     def getToken(self):
         token_list = list()
         with open(self.data_path, 'r') as file:
             for line in file:
                 json_dict = json.loads(line)
+                self.json_docs.append(json_dict)
                 token = [json_dict['document_tokens'][x]['token'] for x in range(len(json_dict['document_tokens'])) if(json_dict['document_tokens'][x]['html_token'] == False)]
                 token_list += token
-                self.paragraph_num += len(json_dict['long_answer_candidates'])
+                self.__paragraph_num += len(json_dict['long_answer_candidates'])
                 #print(len(token_list))
                 #print("con meo")
         return token_list
-
-    def buildVector(self):
-        words_matrix = np.zeros((self.paragraph_num, self.vocab_size))
-        # build vector representation for paragraph
-        tmp_vec = np.zeros(self.vocab_size)
-        for i in range(len(self.paragraph_num)):
-            pass
 
     def preprocess(self, text):
         '''
@@ -91,6 +129,65 @@ class Dataset:
 
         tokens_list = list(copy.deepcopy((vocab_entries)))
         return tokens_list
+
+
+class RelevanceFeedBack(Dataset):
+
+    def __init__(self):
+        Dataset.__init__(self, "test.jsonl")
+        self.core = Core()
+        self.query = ""
+        self.goal = 0.9
+        self.stopWords = ['a', 'able', 'about', 'across', 'after', 'all', 'almost', 'also', 'am', 'among', 'an',
+                          'and', 'any', 'are', 'as', 'at', 'be', 'because', 'been', 'but', 'by', 'can', 'cannot',
+                          'could', 'dear', 'did', 'do', 'does', 'either', 'else', 'ever', 'every', 'for', 'from',
+                          'get', 'got', 'had', 'has', 'have', 'he', 'her', 'hers', 'him', 'his', 'how', 'however',
+                          'i', 'if', 'in', 'into', 'is', 'it', 'its', 'just', 'least', 'let', 'like', 'likely', 'may',
+                          'me', 'might', 'most', 'must', 'my', 'neither', 'no', 'nor', 'not', 'of', 'off', 'often',
+                          'on', 'only', 'or', 'other', 'our', 'own', 'rather', 'said', 'say', 'says', 'she', 'should',
+                          'since', 'so', 'some', 'than', 'that', 'the', 'their', 'them', 'then', 'there', 'these',
+                          'they', 'this', 'tis', 'to', 'too', 'twas', 'us', 'wants', 'was', 'we', 'were', 'what',
+                          'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'will', 'with', 'would', 'yet',
+                          'you', 'your']
+        self.stopWords = set(self.stopWords)
+        return
+
+    def execute(self):
+        """
+        """
+        print("Please input query")
+        self.query = input()
+        self.core.query = self.query.split()
+        print("Please input target precision")
+        try:
+            self.goal = float(input())
+        except Exception:
+            print("Input is not a valid float number, program will exit!")
+            return
+
+        print(self)
+
+        totalAns = 10.0
+        correctAns = 0.0
+        totalLoop = 1
+
+        result_list = "FAke result list here"
+        """
+        Pick best and worst relevant documents here
+        """
+
+        if correctAns / totalAns > self.goal - 1e-6:  # goal achieved, exit program
+            print("Precision goal achieved, %d loop(s) used, program will exit." % totalLoop)
+            return
+        elif correctAns / totalAns < 1e-6:  # precision is 0, exit program
+            print("Precision goal is 0, program will exit.")
+            return
+        else:  # goal not achieved, give information to Core and refine the query
+            totalLoop += 1
+            correctAns = 0.0
+            self.core.input(CoreInputs)
+            self.query = self.core.getQuery()
+            print("New query is %s, another 10 answer will be shown" % self.query)
 
 class Paragraph:
     def __init__(self, start_token, end_token, json_dict):
@@ -166,6 +263,7 @@ class Document:
         for candidate in self.candidates:
             score.append((candidate, self.bm25(candidate)))
         return score
+
 def _verify():
     with open("test.jsonl", 'r') as file:
         for line in file:
@@ -202,7 +300,12 @@ def _verify():
             print(match)
 
 def _rel_feedback():
-    a = Dataset("test.jsonl")
+    run1 = Dataset("test.jsonl")
+    run2 = RelevanceFeedBack()
+    run2.execute()
+    preprocess = Preprocess()
+    print(preprocess.tokenize(run2.query))
+    score = []
 
 def main():
     #_verify()
