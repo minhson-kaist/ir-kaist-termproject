@@ -29,22 +29,36 @@ class Preprocess:
     def __init__(self):
         pass
 
-    # Token lemmatizing
     def lemmatize_tokens(self, tokens, wordnet_lemmatizer):
+        '''
+        Lemmatization
+        :param tokens:
+        :param wordnet_lemmatizer:
+        :return:
+        '''
         lemmatized = []
         for item in tokens:
             lemmatized.append(wordnet_lemmatizer.lemmatize(item))
         return lemmatized
 
-    # Token stemming
     def stem_tokens(self, tokens, porter_stemmer):
+        '''
+        Stemming
+        :param tokens:
+        :param porter_stemmer:
+        :return:
+        '''
         stemmed = []
         for item in tokens:
             stemmed.append(porter_stemmer.stem(item))
         return stemmed
 
-    # Build a vocabulary
     def tokenize(self, text):
+        '''
+        Normalize, lemma, stemming, and stopword
+        :param text:
+        :return:
+        '''
         text = text.lower()
         tokens = nltk.word_tokenize(text)
         lemma = self.lemmatize_tokens(tokens, wordnet_lemmatizer)
@@ -67,6 +81,10 @@ class Dataset:
         self.vocab_size = len(self.preprocessed)
 
     def getParaCandidates(self):
+        '''
+        Get all paragraphs in corpus
+        :return:
+        '''
         para_candidates = list()
         for i in range (len(self.json_docs)):
             for j in range(len(self.json_docs[i]['long_answer_candidates'])):
@@ -79,15 +97,32 @@ class Dataset:
 
 
     def setParagraphNum(self, num):
+        '''
+        Set number of paragraph
+        :param num:
+        :return:
+        '''
         self.__paragraph_num = num
 
     def getParagraphNum(self):
+        '''
+        Get number of paragraph
+        :return:
+        '''
         return self.__paragraph_num
 
     def displayParagraphNum(self):
+        '''
+        Display number of paragraph
+        :return:
+        '''
         print(self.__paragraph_num)
 
     def getToken(self):
+        '''
+        Get all tokens in corpus
+        :return:
+        '''
         token_list = list()
         with open(self.data_path, 'r') as file:
             for line in file:
@@ -96,15 +131,13 @@ class Dataset:
                 token = [json_dict['document_tokens'][x]['token'] for x in range(len(json_dict['document_tokens'])) if(json_dict['document_tokens'][x]['html_token'] == False)]
                 token_list += token
                 self.__paragraph_num += len(json_dict['long_answer_candidates'])
-                #print(len(token_list))
-                #print("con meo")
         return token_list
 
     def preprocess(self, text):
         '''
-        Preprocess raw text to get tokens
-        :param: text: Input text (string)
-        :return: vocab_entries: Output vocabulary (filter)
+        Perform norm, lemma, and stopword here
+        :param:
+        :return:
         '''
 
         stemmed = []
@@ -136,24 +169,13 @@ class RelevanceFeedBack(Dataset):
     def __init__(self):
         Dataset.__init__(self, "test.jsonl")
         self.core = Core()
-        self.query = ""
+        self.query = "" #Query to be filled by user
         self.goal = 0.9
-        self.stopWords = ['a', 'able', 'about', 'across', 'after', 'all', 'almost', 'also', 'am', 'among', 'an',
-                          'and', 'any', 'are', 'as', 'at', 'be', 'because', 'been', 'but', 'by', 'can', 'cannot',
-                          'could', 'dear', 'did', 'do', 'does', 'either', 'else', 'ever', 'every', 'for', 'from',
-                          'get', 'got', 'had', 'has', 'have', 'he', 'her', 'hers', 'him', 'his', 'how', 'however',
-                          'i', 'if', 'in', 'into', 'is', 'it', 'its', 'just', 'least', 'let', 'like', 'likely', 'may',
-                          'me', 'might', 'most', 'must', 'my', 'neither', 'no', 'nor', 'not', 'of', 'off', 'often',
-                          'on', 'only', 'or', 'other', 'our', 'own', 'rather', 'said', 'say', 'says', 'she', 'should',
-                          'since', 'so', 'some', 'than', 'that', 'the', 'their', 'them', 'then', 'there', 'these',
-                          'they', 'this', 'tis', 'to', 'too', 'twas', 'us', 'wants', 'was', 'we', 'were', 'what',
-                          'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'will', 'with', 'would', 'yet',
-                          'you', 'your']
-        self.stopWords = set(self.stopWords)
-        return
+        self.stopWords = set(stopwords.words('english'))
 
     def execute(self):
         """
+        Execute RF
         """
         print("Please input query")
         self.query = input()
@@ -172,6 +194,7 @@ class RelevanceFeedBack(Dataset):
         totalLoop = 1
 
         result_list = "FAke result list here"
+
         """
         Pick best and worst relevant documents here
         """
@@ -199,6 +222,10 @@ class Paragraph:
         self.get_paragraph_tokens()
 
     def get_paragraph_tokens(self):
+        '''
+        Get token of a paragraph
+        :return:
+        '''
         current_tokens = self.json_dict['document_tokens'][self.start_token:self.end_token]
 
         for elem in current_tokens:
@@ -217,6 +244,10 @@ class Document:
 
     #gets the average paragraph length
     def get_avgdl(self):
+        '''
+        Get avg length of paragraphs over a doc
+        :return:
+        '''
         num_para = len(self.candidates)
         total = 0
         for para in self.candidates:
@@ -225,6 +256,11 @@ class Document:
 
     #calculats idf according to this formula: https://en.wikipedia.org/wiki/Okapi_BM25
     def get_idf(self, term):
+        '''
+        Compute idf
+        :param term:
+        :return:
+        '''
         N = len(self.candidates)
         nqi = 0
         for candidate in self.candidates:
@@ -232,8 +268,12 @@ class Document:
                 nqi = nqi + 1
         return math.log10((N-nqi+0.5)/(nqi+0.5))
 
-    #computse bm25 for 1 paragraph
     def bm25(self, paragraph):
+        '''
+        Compute BM25 for 1 paragraph
+        :param paragraph:
+        :return:
+        '''
         score = 0
         k1 = 1.2
         b = 0.75
@@ -248,7 +288,6 @@ class Document:
             score += (self.get_idf(q)*tf*(k1+1))/(tf + k1*(1-b+b*(dl/self.avgdl)))
         return score
 
-    #creates all the paragraphs and returns a list of em
     def get_candidates(self, json_candidates):
         candidates1 = []
         for c in json_candidates:
@@ -259,12 +298,20 @@ class Document:
 
     #computes bm25 for all the paragraphs
     def bm25_for_all_para(self):
+        '''
+        Compute BM25 for all paragraphs in a doc with a given query
+        :return:
+        '''
         score = []
         for candidate in self.candidates:
             score.append((candidate, self.bm25(candidate)))
         return score
 
 def _verify():
+    '''
+    Verify BM25 work correctly or not compared to the golden labels
+    :return: False/True
+    '''
     with open("test.jsonl", 'r') as file:
         for line in file:
             json_dict = json.loads(line)
