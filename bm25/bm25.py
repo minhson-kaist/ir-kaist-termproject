@@ -4,6 +4,7 @@ import operator
 import nltk
 import copy
 import numpy as np
+import jsonlines
 
 from nltk.stem.porter import PorterStemmer
 from nltk.stem import WordNetLemmatizer
@@ -73,6 +74,7 @@ class Dataset:
     def __init__(self, data_path):
         self.data_path = data_path
         self.json_docs = list()
+        self.jsl_file = list()
         self.__paragraph_num = 0
         self.token_list = self.getToken()
         self.para_candidates = self.getParaCandidates()
@@ -124,9 +126,9 @@ class Dataset:
         :return:
         '''
         token_list = list()
-        with open(self.data_path, 'r') as file:
-            for line in file:
-                json_dict = json.loads(line)
+        with jsonlines.open(self.data_path, 'r') as jsl_file:
+            self.jsl_file = jsl_file
+            for json_dict in jsl_file:
                 self.json_docs.append(json_dict)
                 token = [json_dict['document_tokens'][x]['token'] for x in range(len(json_dict['document_tokens'])) if(json_dict['document_tokens'][x]['html_token'] == False)]
                 token_list += token
@@ -167,11 +169,15 @@ class Dataset:
 class RelevanceFeedBack(Dataset):
 
     def __init__(self):
-        Dataset.__init__(self, "test.jsonl")
+        Dataset.__init__(self, "nq-dev-sample.jsonl")
         self.core = Core()
         self.query = "" #Query to be filled by user
         self.goal = 0.9
         self.stopWords = set(stopwords.words('english'))
+
+    def RF_Verify(self):
+        prepro = Preprocess()
+        pass
 
     def execute(self):
         """
@@ -307,56 +313,73 @@ class Document:
             score.append((candidate, self.bm25(candidate)))
         return score
 
-def _verify():
-    '''
-    Verify BM25 work correctly or not compared to the golden labels
-    :return: False/True
-    '''
-    with open("test.jsonl", 'r') as file:
-        for line in file:
-            json_dict = json.loads(line)
-            answer_token = list()
-            for anno in json_dict['annotations']:
-                start_token = anno['long_answer']['start_token']
-                end_token = anno['long_answer']['end_token']
-                if (start_token == -1 or end_token == -1):
-                    continue
-                answer_token.append((start_token, end_token))
-            answer_token_set = set(answer_token)
-            answer_token_len = len(answer_token_set)
+class BM25(Dataset):
 
-            #print("Answer token len is: {}".format(answer_token_len))
+    def __init__(self):
+        Dataset.__init__(self, "nq-dev-sample.jsonl")
+
+    def bm25Score(self):
+        bm25_score_list = list()
+        for json_dict in self.json_docs:
             d = Document(json_dict)
             score = d.bm25_for_all_para()
             bm25_score = [x[1] for x in score]
-            index, value = max(enumerate(bm25_score), key=operator.itemgetter(1))
-            print(bm25_score)
-            print(index)
-            print(value)
-            start_token = score[index][0].start_token
-            end_token = score[index][0].end_token
+            bm25_score_list.append(bm25_score)
 
-            print(start_token)
-            print(end_token)
+        print("The number of document is {}".format(len(bm25_score_list)))
+        print("Finish scoring all corpus")
 
-            match = False
-            for token_set in answer_token_set:
-                if(token_set[0] == start_token and token_set[1] == end_token):
-                    match = True
+    def bm25Verify(self):
+        '''
+        Verify BM25 work correctly or not compared to the golden labels
+        :return: False/True
+        '''
 
-            print(match)
+        with jsonlines.open("nq-dev-sample.jsonl", 'r') as jsl_file:
+            count = 0
+            match = 0
+            print(type(jsl_file))
+            for json_dict in jsl_file:
+                answer_token = list()
+                count += 1
+                for anno in json_dict['annotations']:
+                    start_token = anno['long_answer']['start_token']
+                    end_token = anno['long_answer']['end_token']
+                    if (start_token == -1 or end_token == -1):
+                        continue
+                    answer_token.append((start_token, end_token))
+                answer_token_set = set(answer_token)
+                answer_token_len = len(answer_token_set)
 
-def _rel_feedback():
-    run1 = Dataset("test.jsonl")
-    run2 = RelevanceFeedBack()
-    run2.execute()
-    preprocess = Preprocess()
-    print(preprocess.tokenize(run2.query))
-    score = []
+                # print("Answer token len is: {}".format(answer_token_len))
+                d = Document(json_dict)
+                score = d.bm25_for_all_para()
+                bm25_score = [x[1] for x in score]
+                index, value = max(enumerate(bm25_score), key=operator.itemgetter(1))
+                '''
+                print(bm25_score)
+                print(index)
+                print(value)
+                '''
+                start_token = score[index][0].start_token
+                end_token = score[index][0].end_token
+                '''
+                print(start_token)
+                print(end_token)
+                '''
+                # count = 0
+                hit = False
+                for token_set in answer_token_set:
+                    if (token_set[0] == start_token and token_set[1] == end_token):
+                        hit = True
+                        match += 1
+
+        print(count)
+        # print(match)
 
 def main():
-    #_verify()
-    _rel_feedback()
+    run = BM25()
+    run.bm25Score()
 
 if __name__ == '__main__':
     main()
