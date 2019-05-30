@@ -1,5 +1,6 @@
 import jsonlines
 import config
+from document import DocumentQuery
 
 dict_golden_label = []
 
@@ -41,5 +42,6 @@ with jsonlines.open(config.train_folder, 'r') as jsl_file:
                     paragraph_token.append(token['token'])
             dict_obj['long_answer_candidates'].append(' '.join(paragraph_token))
         
-        dict_golden_label.append(dict_obj)
+        sample = DocumentQuery(dict_obj)
+        dict_golden_label.append(sample)
         #break
