@@ -31,6 +31,36 @@ class Preprocess:
     def __init__(self):
         pass
 
+    def preprocess(self, text):
+        '''
+        Perform norm, lemma, and stopword here
+        :param:
+        :return:
+        '''
+
+        stemmed = []
+        lemmatized = []
+        wordsFiltered = []
+
+        # Normalization
+        norm_text = [text[x].lower() for x in range(len(text))]
+
+        # Tokenization
+        token_text = text
+
+        # Lemmatization
+        for token in token_text:
+            lemmatized.append(wordnet_lemmatizer.lemmatize(token))
+
+        wordsFiltered = filter(lambda
+                                   word_to_filter: word_to_filter not in stopWords and word_to_filter.isalpha() and word_to_filter in word_list,
+                               lemmatized)
+
+        vocab_entries = wordsFiltered
+
+        tokens_list = list(copy.deepcopy((vocab_entries)))
+        return tokens_list
+
     def lemmatize_tokens(self, tokens, wordnet_lemmatizer):
         '''
         Lemmatization
@@ -79,7 +109,7 @@ class Dataset:
         self.__paragraph_num = 0
         self.len_list = list()
         self.token_list = self.getToken()
-        self.para_candidates = self.getParaCandidates()
+        self.para_candidates, self.preprocessed_para_candidates = self.getParaCandidates()
         self.doc_num = len(self.json_docs)
 
         self.preprocessed = self.preprocess(self.token_list)
@@ -91,6 +121,7 @@ class Dataset:
         :return:
         '''
         para_candidates = list()
+        preprocessed_para_candidates = list()
         for i in range (len(self.json_docs)):
             for j in range(len(self.json_docs[i]['long_answer_candidates'])):
                 start_token = self.json_docs[i]['long_answer_candidates'][j]['start_token']
@@ -98,7 +129,13 @@ class Dataset:
                 paragraphTokens = self.json_docs[i]['document_tokens'][start_token:end_token]
                 para_candidates.append(paragraphTokens)
 
-        return para_candidates
+                token = [paragraphTokens[x]['token'] for x in range(len(paragraphTokens)) if
+                         (paragraphTokens[x]['html_token'] == False)]
+                preprocessed_paragraphTokens = self.preprocess(token)
+                preprocessed_para_candidates.append(preprocessed_paragraphTokens)
+
+        return para_candidates, preprocessed_para_candidates
+
 
 
     def setParagraphNum(self, num):
@@ -205,21 +242,6 @@ class RelevanceFeedBack(Dataset):
         """
         Execute RF
         """
-        print("Please input query")
-        self.query = input()
-        self.core.query = self.query.split()
-        print("Please input target precision")
-        try:
-            self.goal = float(input())
-        except Exception:
-            print("Input is not a valid float number, program will exit!")
-            return
-
-        print(self)
-
-        totalAns = 10.0
-        correctAns = 0.0
-        totalLoop = 1
 
         preprocess = Preprocess()
         question_tokens = preprocess.tokenize(self.query)
@@ -227,7 +249,20 @@ class RelevanceFeedBack(Dataset):
         #result_list = "FAke result list here"
         for json_dict in self.json_docs:
             d = Document(json_dict)
-            d.query = question_tokens
+            d.query = self.preprocess(d.query)
+            for i in range(len(d.candidates)):
+                preprocessed_candidate = dict()
+                candidate = d.candidates[i]
+                for key, value in candidate.paragraph_tokens.items():
+                    norm_key = key.lower()
+                    lemma_key = wordnet_lemmatizer.lemmatize(norm_key)
+                    if (lemma_key not in word_list or lemma_key.isalpha() == False or lemma_key in stopWords):
+                        continue
+
+                    preprocessed_candidate.update({lemma_key:value})
+                d.candidates[i].paragraph_tokens = preprocessed_candidate
+                pass
+
             score = d.bm25_for_all_para()
             bm25_score = [x[1] for x in score]
             '''
@@ -235,25 +270,24 @@ class RelevanceFeedBack(Dataset):
             And in each document, we compute bm25 score 
             b/w the query and each paragraph
             '''
-            bm25_score_list.append(bm25_score)
+            # Now find 5 best answer with 5 highest score
+            idx_high = sorted(range(len(bm25_score)), key=lambda x: bm25_score[x])[-5:]
+            pass
 
-        # Flatten the 2d list of bm25 score
-        bm25_flatten = list(sum(bm25_score_list, []))
-        # Now find 10 best answer with 10 highest score
-        idx_high = sorted(range(len(bm25_flatten)), key=lambda x: bm25_flatten[x])[-10:]
-        for i in idx_high:
-            doc_idx, para_idx = self.getIndex(i)
-            if (doc_idx == -1 and para_idx == -1):
-                print("Wrong in getIndex()")
-                return
-            #print(self.json_docs[doc_idx])
-            print(self.para_candidates[i]) # Its result list here
 
-        input("Press Enter to continue...")
+            for i in idx_high:
+                doc_idx, para_idx = self.getIndex(i)
+                if (doc_idx == -1 and para_idx == -1):
+                    print("Wrong in getIndex()")
+                    return
+                #print(self.json_docs[doc_idx])
+                print(self.preprocessed_para_candidates[i]) # Its result list here
+
         """
         Pick best and worst relevant documents here
         """
 
+<<<<<<< HEAD
         if correctAns / totalAns > self.goal - 1e-6:  # goal achieved, exit program
             print("Precision goal achieved, %d loop(s) used, program will exit." % totalLoop)
             return
@@ -267,6 +301,8 @@ class RelevanceFeedBack(Dataset):
             self.query = self.core.getQuery()
             print("New query is %s, another 10 answer will be shown" % self.query)
 
+=======
+>>>>>>> aa4c07bf89765cfaf0a660a27f008489b552d9be
 class Paragraph:
     def __init__(self, start_token, end_token, json_dict):
         self.json_dict = json_dict
@@ -288,15 +324,28 @@ class Paragraph:
                 self.length += 1
                 self.paragraph_tokens[elem["token"]] = self.paragraph_tokens.get(elem["token"], 0) + 1
 
-class Document:
+class Document(Preprocess):
 
     def __init__ (self, json1):
         self.json = json1
         self.id = json1["example_id"]
-        self.query = json1["question_tokens"]
+        self.query = self.preprocess(json1["question_tokens"])
         self.candidates = self.get_candidates(json1["long_answer_candidates"])
         self.avgdl = self.get_avgdl()
+        self.run_preprocess()
 
+    def run_preprocess(self):
+        for i in range(len(self.candidates)):
+            preprocessed_candidate = dict()
+            candidate = self.candidates[i]
+            for key, value in candidate.paragraph_tokens.items():
+                norm_key = key.lower()
+                lemma_key = wordnet_lemmatizer.lemmatize(norm_key)
+                if (lemma_key not in word_list or lemma_key.isalpha() == False or lemma_key in stopWords):
+                    continue
+
+                preprocessed_candidate.update({lemma_key: value})
+            self.candidates[i].paragraph_tokens = preprocessed_candidate
     #gets the average paragraph length
     def get_avgdl(self):
         '''
@@ -384,7 +433,7 @@ class BM25(Dataset):
         :return: False/True
         '''
 
-        with jsonlines.open("nq-train-sample.jsonl", 'r') as jsl_file:
+        with jsonlines.open("nq-dev-sample.jsonl", 'r') as jsl_file:
             count = 0
             match = 0
             print(type(jsl_file))
