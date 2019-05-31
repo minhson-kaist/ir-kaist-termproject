@@ -243,7 +243,7 @@ class RelevanceFeedBack(Dataset):
         idx_high = sorted(range(len(bm25_flatten)), key=lambda x: bm25_flatten[x])[-10:]
         for i in idx_high:
             doc_idx, para_idx = self.getIndex(i)
-            if (i == -1 and j == -1):
+            if (doc_idx == -1 and para_idx == -1):
                 print("Wrong in getIndex()")
                 return
             #print(self.json_docs[doc_idx])
