@@ -73,7 +73,7 @@ class Preprocess:
 
 class Dataset:
     def __init__(self, data_path):
-        self.data_path = "test.jsonl"
+        self.data_path = "train.jsonl"
         self.json_docs = list()
         self.jsl_file = list()
         self.__paragraph_num = 0
@@ -263,7 +263,7 @@ class RelevanceFeedBack(Dataset):
         else:  # goal not achieved, give information to Core and refine the query
             totalLoop += 1
             correctAns = 0.0
-            self.core.input(CoreInputs)
+            #self.core.input(CoreInputs)
             self.query = self.core.getQuery()
             print("New query is %s, another 10 answer will be shown" % self.query)
 
@@ -428,10 +428,10 @@ class BM25(Dataset):
         # print(match)
 
 def main():
-    #run = BM25()
-    #run.bm25Score()
-    run = RelevanceFeedBack()
-    run.execute()
+    run = BM25()
+    run.bm25Score()
+    #run = RelevanceFeedBack()
+    #run.execute()
 
 if __name__ == '__main__':
     main()
