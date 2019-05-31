@@ -5,6 +5,7 @@ import nltk
 import copy
 import numpy as np
 import jsonlines
+import itertools
 
 from nltk.stem.porter import PorterStemmer
 from nltk.stem import WordNetLemmatizer
@@ -72,12 +73,14 @@ class Preprocess:
 
 class Dataset:
     def __init__(self, data_path):
-        self.data_path = data_path
+        self.data_path = "test.jsonl"
         self.json_docs = list()
         self.jsl_file = list()
         self.__paragraph_num = 0
+        self.len_list = list()
         self.token_list = self.getToken()
         self.para_candidates = self.getParaCandidates()
+        self.doc_num = len(self.json_docs)
 
         self.preprocessed = self.preprocess(self.token_list)
         self.vocab_size = len(self.preprocessed)
@@ -133,6 +136,7 @@ class Dataset:
                 token = [json_dict['document_tokens'][x]['token'] for x in range(len(json_dict['document_tokens'])) if(json_dict['document_tokens'][x]['html_token'] == False)]
                 token_list += token
                 self.__paragraph_num += len(json_dict['long_answer_candidates'])
+                self.len_list.append(len(json_dict['long_answer_candidates']))
         return token_list
 
     def preprocess(self, text):
@@ -179,6 +183,24 @@ class RelevanceFeedBack(Dataset):
         prepro = Preprocess()
         pass
 
+    def getIndex(self, x):
+        '''
+        To map from flatten index to index of a para in corpus
+        :param x:
+        :return:
+        '''
+        len_list = self.len_list
+        sum = len_list[0] - 1
+        for i in range(1, len(len_list) + 1):
+            if (x>sum):
+                sum += len_list[i]
+            else:
+                sum -= len_list[i-1]
+                para_idx = x - sum - 2
+                doc_idc = i-1
+                return doc_idc, para_idx
+        return -1, -1
+
     def execute(self):
         """
         Execute RF
@@ -199,8 +221,35 @@ class RelevanceFeedBack(Dataset):
         correctAns = 0.0
         totalLoop = 1
 
-        result_list = "FAke result list here"
+        preprocess = Preprocess()
+        question_tokens = preprocess.tokenize(self.query)
+        bm25_score_list = list()
+        #result_list = "FAke result list here"
+        for json_dict in self.json_docs:
+            d = Document(json_dict)
+            d.query = question_tokens
+            score = d.bm25_for_all_para()
+            bm25_score = [x[1] for x in score]
+            '''
+            Here given a query, we loop over all documents
+            And in each document, we compute bm25 score 
+            b/w the query and each paragraph
+            '''
+            bm25_score_list.append(bm25_score)
 
+        # Flatten the 2d list of bm25 score
+        bm25_flatten = list(sum(bm25_score_list, []))
+        # Now find 10 best answer with 10 highest score
+        idx_high = sorted(range(len(bm25_flatten)), key=lambda x: bm25_flatten[x])[-10:]
+        for i in idx_high:
+            doc_idx, para_idx = self.getIndex(i)
+            if (doc_idx == -1 and para_idx == -1):
+                print("Wrong in getIndex()")
+                return
+            #print(self.json_docs[doc_idx])
+            print(self.para_candidates[i]) # Its result list here
+
+        input("Press Enter to continue...")
         """
         Pick best and worst relevant documents here
         """
@@ -355,6 +404,7 @@ class BM25(Dataset):
                 d = Document(json_dict)
                 score = d.bm25_for_all_para()
                 bm25_score = [x[1] for x in score]
+                # Find index value of the max element in the list
                 index, value = max(enumerate(bm25_score), key=operator.itemgetter(1))
                 '''
                 print(bm25_score)
@@ -378,8 +428,10 @@ class BM25(Dataset):
         # print(match)
 
 def main():
-    run = BM25()
-    run.bm25Score()
+    #run = BM25()
+    #run.bm25Score()
+    run = RelevanceFeedBack()
+    run.execute()
 
 if __name__ == '__main__':
     main()
