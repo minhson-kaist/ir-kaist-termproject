@@ -274,13 +274,15 @@ class RelevanceFeedBack(Dataset):
             idx_high = sorted(range(len(bm25_score)), key=lambda x: bm25_score[x])[-5:]
             pass
 
-
+            # Best 5 terms, eachg terms from each paragraphs
+            best_terms = list()
+            token_dict = dict()
             for i in idx_high:
-                doc_idx, para_idx = self.getIndex(i)
-                if (doc_idx == -1 and para_idx == -1):
-                    print("Wrong in getIndex()")
-                    return
-                #print(self.json_docs[doc_idx])
+                token_dict = d.candidates[i].paragraph_tokens
+                # The terms with highest tf in this paragraph, bcz we just care ab'
+                # a doc, so TF is enough
+                best_term = max(token_dict.items(), key=operator.itemgetter(1))[0]
+                best_terms.append(best_term)
                 print(self.preprocessed_para_candidates[i]) # Its result list here
 
         """
@@ -461,10 +463,10 @@ class BM25(Dataset):
         # print(match)
 
 def main():
-    run = BM25()
-    run.bm25Score()
-    #run = RelevanceFeedBack()
-    #run.execute()
+    #run = BM25()
+    #run.bm25Score()
+    run = RelevanceFeedBack()
+    run.execute()
 
 if __name__ == '__main__':
     main()
