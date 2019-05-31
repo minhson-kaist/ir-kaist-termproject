@@ -260,7 +260,8 @@ class RelevanceFeedBack(Dataset):
                         continue
 
                     preprocessed_candidate.update({lemma_key:value})
-                d.candidates[i] = preprocessed_candidate
+                d.candidates[i].paragraph_tokens = preprocessed_candidate
+                pass
 
             score = d.bm25_for_all_para()
             bm25_score = [x[1] for x in score]
@@ -273,15 +274,15 @@ class RelevanceFeedBack(Dataset):
             idx_high = sorted(range(len(bm25_score)), key=lambda x: bm25_score[x])[-5:]
             pass
 
-        '''
-        for i in idx_high:
-            doc_idx, para_idx = self.getIndex(i)
-            if (doc_idx == -1 and para_idx == -1):
-                print("Wrong in getIndex()")
-                return
-            #print(self.json_docs[doc_idx])
-            print(self.preprocessed_para_candidates[i]) # Its result list here
-        '''
+
+            for i in idx_high:
+                doc_idx, para_idx = self.getIndex(i)
+                if (doc_idx == -1 and para_idx == -1):
+                    print("Wrong in getIndex()")
+                    return
+                #print(self.json_docs[doc_idx])
+                print(self.preprocessed_para_candidates[i]) # Its result list here
+
         """
         Pick best and worst relevant documents here
         """
@@ -307,15 +308,28 @@ class Paragraph:
                 self.length += 1
                 self.paragraph_tokens[elem["token"]] = self.paragraph_tokens.get(elem["token"], 0) + 1
 
-class Document:
+class Document(Preprocess):
 
     def __init__ (self, json1):
         self.json = json1
         self.id = json1["example_id"]
-        self.query = json1["question_tokens"]
+        self.query = self.preprocess(json1["question_tokens"])
         self.candidates = self.get_candidates(json1["long_answer_candidates"])
         self.avgdl = self.get_avgdl()
+        self.run_preprocess()
 
+    def run_preprocess(self):
+        for i in range(len(self.candidates)):
+            preprocessed_candidate = dict()
+            candidate = self.candidates[i]
+            for key, value in candidate.paragraph_tokens.items():
+                norm_key = key.lower()
+                lemma_key = wordnet_lemmatizer.lemmatize(norm_key)
+                if (lemma_key not in word_list or lemma_key.isalpha() == False or lemma_key in stopWords):
+                    continue
+
+                preprocessed_candidate.update({lemma_key: value})
+            self.candidates[i].paragraph_tokens = preprocessed_candidate
     #gets the average paragraph length
     def get_avgdl(self):
         '''
@@ -403,7 +417,7 @@ class BM25(Dataset):
         :return: False/True
         '''
 
-        with jsonlines.open("nq-train-sample.jsonl", 'r') as jsl_file:
+        with jsonlines.open("nq-dev-sample.jsonl", 'r') as jsl_file:
             count = 0
             match = 0
             print(type(jsl_file))
@@ -447,10 +461,10 @@ class BM25(Dataset):
         # print(match)
 
 def main():
-    #run = BM25()
-    #run.bm25Score()
-    run = RelevanceFeedBack()
-    run.execute()
+    run = BM25()
+    run.bm25Score()
+    #run = RelevanceFeedBack()
+    #run.execute()
 
 if __name__ == '__main__':
     main()
