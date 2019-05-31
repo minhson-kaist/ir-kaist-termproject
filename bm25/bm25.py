@@ -403,7 +403,7 @@ class BM25(Dataset):
         :return: False/True
         '''
 
-        with jsonlines.open("nq-dev-sample.jsonl", 'r') as jsl_file:
+        with jsonlines.open("nq-train-sample.jsonl", 'r') as jsl_file:
             count = 0
             match = 0
             print(type(jsl_file))
