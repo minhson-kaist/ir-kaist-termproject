@@ -365,7 +365,7 @@ class Document:
 class BM25(Dataset):
 
     def __init__(self):
-        Dataset.__init__(self, "nq-dev-sample.jsonl")
+        Dataset.__init__(self, "nq-train-sample.jsonl")
 
     def bm25Score(self):
         bm25_score_list = list()
