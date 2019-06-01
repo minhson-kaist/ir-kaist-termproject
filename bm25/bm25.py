@@ -283,7 +283,7 @@ class RelevanceFeedBack(Dataset):
                 # a doc, so TF is enough
                 best_term = max(token_dict.items(), key=operator.itemgetter(1))[0]
                 best_terms.append(best_term)
-                print(self.preprocessed_para_candidates[i]) # Its result list here
+                print(best_terms) # Its result list here
 
         """
         Pick best and worst relevant documents here
@@ -319,6 +319,8 @@ class Document(Preprocess):
         self.candidates = self.get_candidates(json1["long_answer_candidates"])
         self.avgdl = self.get_avgdl()
         self.run_preprocess()
+        self.bm25Score = self.bm25_for_all_para()
+        pass
 
     def run_preprocess(self):
         for i in range(len(self.candidates)):
